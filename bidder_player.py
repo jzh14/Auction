@@ -119,7 +119,3 @@ class BidderPlayer(object):
 	def segment_received(self, index, data):
 		played_entry = (index, data)
 		self.played_queue.put(played_entry)
-
-
-
-

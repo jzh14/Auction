@@ -161,6 +161,22 @@ class TransportClient(object):
 		tend = time.time()
 		return data_length, tend-tbegin#data_length /(tend - tbegin)/1024/1024
 
+	def transport_text(self, ip, text):
+                tbegin = time.time()
+                try:
+                        stimeout = 1.0
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        sock.settimeout(stimeout)
+                        sock.connect((ip, self.port))
+                        sock.sendall(FILE_BOF + "0" + FILE_SEP + text)
+                        sock.close()
+                        self.protocol.send_successed(0)
+                except:
+			self.protocol.send_failed(0)
+		tend = time.time()
+		return len(text), tend - tbegin
+
+                
 	# thread function
 	def ttransport(self, ip, index, from_url):
 		t = threading.Thread(target=self.sendto, args=(ip,index,from_url))

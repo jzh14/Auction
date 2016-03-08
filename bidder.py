@@ -10,9 +10,10 @@ import setting
 import message
 import transport
 import log
-from parser import parse_m3u8
+#from parser import parse_m3u8
 from bidder_core import BidderCore
-from bidder_player import BidderPlayer
+#from bidder_player import BidderPlayer
+from m3u8player import M3U8Player
 
 class BidderProtocol(message.Protocol):
 	def __init__(self, factory):
@@ -30,6 +31,8 @@ class BidderProtocol(message.Protocol):
 			self.factory.bid(ip, info)
 		elif inst == 'WIN':# win a bid
 			self.factory.send_task(ip, info)
+			self.factory.auctioneerIP = ip
+                        
 
 class TransportProtocol(transport.Protocol):
 	def __init__(self, factory):
@@ -53,6 +56,7 @@ class Bidder(object):
 		self.streaming_url = url
 		self.bidder_params = bidder_params
 		self.fname_of_buffer = setting.PLAYER_BUFFER
+		#print setting.PLAYER_COMMAND,
 		self.command_of_player = setting.PLAYER_COMMAND
 		# bidder message server
 		self.message_server  = message.MessageServer(
@@ -70,7 +74,8 @@ class Bidder(object):
 			setting.TRP_PORT,
 			TransportProtocol(self))
 		# player
-		self.player = BidderPlayer(self)
+		#self.player = BidderPlayer(self)
+		self.player = M3U8Player(self)
 		# log center
 		self.logger = log.LogClient(peername, bidder_params['broadcast'])
 		self.logger.add_peer(peername)
@@ -80,7 +85,7 @@ class Bidder(object):
 	def start(self):
 		self.running = 1
 		self.prepare()
-		self.player.play()
+		#self.player.play()
 		self.message_server.start()
 		self.message_client.start()
 		self.transport_center.start()
@@ -195,7 +200,7 @@ class Bidder(object):
 			if self.ready_index in self.retrieved:
 				self.player.segment_received(self.ready_index, self.retrieved[self.ready_index])
 				del self.retrieved[self.ready_index]
-				self.ready_index = self.ready_index + 1
+				#self.ready_index = self.ready_index + 1
 			self.task_cond.release()
 
 def parse_args():

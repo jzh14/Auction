@@ -6,8 +6,12 @@ import setting
 import message
 import transport
 import log
+import socket
+import subprocess
 from Queue import Queue
 from auctioneer_core import AuctioneerCore
+from twisted.internet import reactor
+from twisted.web import proxy, server
 
 """ Auctioneer(Downloader)
 Description:
@@ -30,8 +34,10 @@ class AuctionProtocol(message.Protocol):
 		# divide instructions
 		if inst == 'BID':
 			self.factory.receive_bid(ip, info)
-		if inst == 'TASK':
-			self.factory.receive_task(ip,info)
+		elif inst == 'TASK':
+			self.factory.receive_task(ip, info)
+		elif inst == 'CLOSE':
+                        self.factory.open_servers[int(info)].kill()
 
 class TransportProtocol(transport.Protocol):
 
@@ -47,6 +53,7 @@ class TransportProtocol(transport.Protocol):
 class Auctioneer(object):
 
 	def __init__(self, peername, auctioneer_params):
+                self.open_servers = {}
 		# propertys
 		self.peername = peername
 		self.delay = auctioneer_params['delay'] if auctioneer_params['delay'] > 1.0 else 1.0
@@ -110,7 +117,16 @@ class Auctioneer(object):
 				if not ip in self.tasks or self.tasks[ip] <= 0:
 					continue
 				index, url = task.split(',',1)
-				size, duration = self.transport.transport(ip, index, url)
+				remoteAddress = url.split("/")[2]
+				remoteHost = remoteAddress.split(":")[0]
+				remotePort = 80 if len(remoteAddress.split(":")) == 1 else int(remoteAddress.split(":")[1])
+				proxyPort = get_open_port()
+                                p = subprocess.Popen(setting.HTTP_PROXY_COMMAND.split(" ") + [remoteHost, str(remotePort), str(proxyPort)],stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                self.open_servers[proxyPort] = p
+                                urlOverProxy = "http://" + socket.gethostbyname(socket.gethostname()) + ":" + str(proxyPort) + "/" + "/".join(url.split("/")[3:])
+
+                                #size, duration = self.transport.transport(ip, index, url)
+				size, duration = self.transport.transport_text(ip, urlOverProxy)
 				size = float(size) / 1024 / 128 #bytes to mb
 				#delay
 				if self.delay > 1.0:
@@ -172,6 +188,14 @@ class Auctioneer(object):
 	def receive_task(self, ip, task):
 		self.transport_queue.put((ip,task))
 		
+def get_open_port():  
+        import socket  
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  
+        s.bind(("",0))  
+        s.listen(1)  
+        port = s.getsockname()[1]  
+        s.close()  
+        return port
 
 def parse_args():
 	parser = argparse.ArgumentParser(description='Auctioneer')
